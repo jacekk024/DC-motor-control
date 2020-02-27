@@ -62,7 +62,7 @@ int pwm_duty;/**<Wartosc wypelnienia sterujaca predkosc silnika>*/
 int32_t current_speed;/**<Zmienna przechowujaca akutalna predkosc>*/
 int32_t wanted_speed;/**<Zmienna przechowujaca zadana predkosc>*/
 int32_t pid_error;/**<Zmienna obliczanego uchybu>*/
-_Bool flaga_usb;
+_Bool flaga_usb;//**<zmienna detkcji polaczenia z usb>*/
 
 
 
