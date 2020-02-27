@@ -2,7 +2,9 @@
 /**
   ******************************************************************************
   * @file           : main.c
-  * @brief          : Main program body
+  * @author			: Kotra & Piskorz Electronics
+  * @date			: 20.02.2020
+  * @brief          : STM32 program for Direct Motor Speed control
   ******************************************************************************
   * @attention
   *
@@ -54,30 +56,22 @@
 
 /* USER CODE BEGIN PV */
 
-float value_f;
-//uint32_t value32;
-char buffer[40];
-char speed[4];
-uint8_t size;
-uint8_t Received[3];
-char Received_data[4];
-int pwm_duty;
-int row=0;
-int col=0;
-int32_t current_speed;
-int32_t wanted_speed;
-int32_t pid_error;
+float value_f;/**<Wartosc pobierana przez ADC>*/
+uint8_t Received[3];/**<Tablica przechowujaca wiadomosc z UARTA>*/
+int pwm_duty;/**<Wartosc wypelnienia sterujaca predkosc silnika>*/
+int32_t current_speed;/**<Zmienna przechowujaca akutalna predkosc>*/
+int32_t wanted_speed;/**<Zmienna przechowujaca zadana predkosc>*/
+int32_t pid_error;/**<Zmienna obliczanego uchybu>*/
 
 
 
 
-///filtr
-uint32_t adcValue[1];
-uint32_t adcValue1[1];
-int i;
-float32_t signal_in = 0;
-float32_t signal_out = 0;
-
+//*filtr*//
+uint32_t adcValue[1];/**<Zmienna przechowujaca wartosc zczytana z ADC>*/
+uint32_t adcValue1[1];/**<Zmienna przechowujaca wartosc po odfiltrowaniu>*/
+float32_t signal_in = 0;/**<Zmienna przechowujaca wartosc wejsciowa do FIR>*/
+float32_t signal_out = 0;/**<Zmienna przechowujaca wartosc wyjsciowa z FIR>*/
+//***********************//
 #define TEST_LENGTH_SAMPLES  1
 #define BLOCK_SIZE            1
 #define NUM_TAPS              29
@@ -86,7 +80,7 @@ float32_t signal_out = 0;
 #define PID_PARAM_KD	0.7
 
 
-arm_fir_instance_f32 S;
+arm_fir_instance_f32 S;/**<Obiekt przechowujacy FIR>*/
 static float32_t firStateF32[BLOCK_SIZE + NUM_TAPS - 1];
 static float32_t firCoeffs[NUM_TAPS] = {-0.0018225230f, -0.0015879294f, +0.0000000000f, +0.0036977508f, +0.0080754303f,
     +0.0085302217f, -0.0000000000f, -0.0173976984f, -0.0341458607f, -0.0333591565f,
@@ -125,11 +119,10 @@ void SystemClock_Config(void);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-	arm_pid_instance_f32 PID;
-	char buffer[150];
-	PID.Kp = PID_PARAM_KP;
-	PID.Ki = PID_PARAM_KI;
-	PID.Kd = PID_PARAM_KD;
+	arm_pid_instance_f32 PID;/**<Zmienna przechowujaca obiekt PID>*/
+	PID.Kp = PID_PARAM_KP;/**<Zmienna przechowujaca wartosc KP>*/
+	PID.Ki = PID_PARAM_KI;/**<Zmienna przechowujaca wartosc KI>*/
+	PID.Kd = PID_PARAM_KD;/**<Zmienna przechowujaca wartosc KD>*/
   /* USER CODE END 1 */
   
 
@@ -158,37 +151,45 @@ int main(void)
   MX_TIM3_Init();
   MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
-  arm_pid_init_f32(&PID, 1);
-  lcd_init ();
-
-
-
-
-
-
+  /**
+   * inicjalizowanie obiektu PID
+   */
+  	arm_pid_init_f32(&PID, 1);
+  /**
+    * inicjalizowanie obiektu LCD
+    */
+  	lcd_init ();
+  	/**
+  	  * inicjalizowanie podstawowych funkcji mikroporcesora
+  	  */
 	HAL_TIM_Base_Start_IT(&htim4);
-	//HAL_TIM_Base_Start_IT(&htim9);
-
-
-    HAL_ADC_Start(&hadc1);
-    HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_3);
-    HAL_UART_Receive_IT(&huart3,Received,3);/*zeby dzialal callback musi byc inicjalizacja receive*/
-    arm_fir_init_f32(&S, NUM_TAPS, (float32_t *)&firCoeffs[0], (float32_t *)&firStateF32[0], blockSize);
-    //__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, 1000);
-
+	HAL_ADC_Start(&hadc1);
+	HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_3);
+	HAL_UART_Receive_IT(&huart3,Received,3);
+	/**
+	  * inicjalizowanie obiektu FIR
+	  */
+	arm_fir_init_f32(&S, NUM_TAPS, (float32_t *)&firCoeffs[0], (float32_t *)&firStateF32[0], blockSize);
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+	 /**
+	   *
+	   * @brief Funkcja glowna programu.Odpowiada za odbieranie warotsci z ADC, uzycie filtra FIR oraz regulatora PID oraz zadaniu wypelniena PWM.
+	   *
+	   * */
   while (1)
   {
+
+
 	  if (HAL_ADC_PollForConversion(&hadc1, 100) == HAL_OK) {
 
-	  	   value_f = HAL_ADC_GetValue(&hadc1);
+	  	 value_f = HAL_ADC_GetValue(&hadc1);
 	  	 arm_fir_f32(&S, &value_f, &signal_out, blockSize);
-	  	   current_speed =  (int32_t)(signal_out/2.4);
-	  	  HAL_ADC_Start(&hadc1);
+	  	 current_speed =  (int32_t)(signal_out/2.4);
+	  	 HAL_ADC_Start(&hadc1);
 	  	  }
 	  arm_fir_f32(&S, &value_f, &signal_out, blockSize);
 	  current_speed =  (int32_t)(signal_out/2.4);
@@ -206,7 +207,7 @@ int main(void)
 	  	__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, pwm_duty);
 
 
-	  	//  HAL_Delay(10);
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -271,16 +272,21 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+/**
+ * @brief	Odpowiada za utworzenie przerwania przy przesylaniu danych przez UART
+ */
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
 		  	wanted_speed = (int32_t)(atoi(Received)*7 + 300);
 		  	 HAL_UART_Receive_IT(&huart3,&Received,3);
 }
-
+/**
+ * @brief	Przerwanie timera odpowiadajacego za wyswietlenie warotsci na wyswietlaczu LCD
+ */
 void HAL_TIM_PeriodElapsedCallback (TIM_HandleTypeDef * htim)
 {
-	char speed[4];
-	char speed2[4];
+	char speed[4];/**<Tablica przechowujaca wartosc obecnej predkosci>*/
+	char speed2[4];/**<Tablica przchowujaca wartosc predkosci zadanej>*/
 	sprintf(speed,"%i",current_speed);
 	sprintf(speed2,"%i",wanted_speed);
 
@@ -299,7 +305,7 @@ void HAL_TIM_PeriodElapsedCallback (TIM_HandleTypeDef * htim)
 
 
 
-		//lcd_send_string(" ");
+
 	}
 }
 
