@@ -62,6 +62,7 @@ int pwm_duty;/**<Wartosc wypelnienia sterujaca predkosc silnika>*/
 int32_t current_speed;/**<Zmienna przechowujaca akutalna predkosc>*/
 int32_t wanted_speed;/**<Zmienna przechowujaca zadana predkosc>*/
 int32_t pid_error;/**<Zmienna obliczanego uchybu>*/
+_Bool flaga_usb;
 
 
 
@@ -277,14 +278,28 @@ void SystemClock_Config(void)
  */
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
-		  	wanted_speed = (int32_t)(atoi(Received)*7 + 300);
-		  	 HAL_UART_Receive_IT(&huart3,&Received,3);
+			if((Received[0]=='0'|| Received[0]=='1') && (Received[1]>='0' &&  Received[1]<='9') && (Received[2]>='0' &&Received[2]<='9') && sizeof(Received)==3)
+			{
+				wanted_speed = (int32_t)(atoi(Received)*7 + 300);
+				HAL_UART_Receive_IT(&huart3,&Received,3);
+			  	HAL_UART_Transmit(&huart3, &Received  , 3, 10000);
+
+			}
+			else{
+				Received[0]='0';
+				Received[1]='0';
+				Received[2]='0';
+				HAL_UART_Receive_IT(&huart3,&Received,3);
+				HAL_UART_Transmit(&huart3, &Received , 3, 10000);
+
+			}
 }
 /**
  * @brief	Przerwanie timera odpowiadajacego za wyswietlenie warotsci na wyswietlaczu LCD
  */
 void HAL_TIM_PeriodElapsedCallback (TIM_HandleTypeDef * htim)
 {
+	flaga_usb=HAL_GPIO_ReadPin(state_GPIO_Port, state_Pin);
 	char speed[4];/**<Tablica przechowujaca wartosc obecnej predkosci>*/
 	char speed2[4];/**<Tablica przchowujaca wartosc predkosci zadanej>*/
 	sprintf(speed,"%i",current_speed);
@@ -292,6 +307,8 @@ void HAL_TIM_PeriodElapsedCallback (TIM_HandleTypeDef * htim)
 
 	if(htim->Instance == TIM4)
 	{
+		if(flaga_usb==1)
+		{
 		lcd_clear();
 		lcd_put_cur(0, 0);
 		lcd_send_string("current:");
@@ -301,13 +318,23 @@ void HAL_TIM_PeriodElapsedCallback (TIM_HandleTypeDef * htim)
 		lcd_send_string("wannted:");
 		lcd_send_string(speed2);
 		lcd_put_cur(0, 0);
+		}
+		else
+		{
+			lcd_clear();
+			lcd_put_cur(0, 0);
+			lcd_send_string("USB disconnect");
 
+
+		}
 
 
 
 
 	}
 }
+
+
 
 /* USER CODE END 4 */
 
