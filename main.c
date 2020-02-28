@@ -192,7 +192,6 @@ int main(void)
 	  	 current_speed =  (int32_t)(signal_out/2.4);
 	  	 HAL_ADC_Start(&hadc1);
 	  	  }
-	  arm_fir_f32(&S, &value_f, &signal_out, blockSize);
 	  current_speed =  (int32_t)(signal_out/2.4);
 	   pid_error = wanted_speed-current_speed;
 	   pwm_duty = (int32_t)arm_pid_f32(&PID, pid_error);
